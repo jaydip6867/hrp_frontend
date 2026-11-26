@@ -1,12 +1,37 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import api from '../../services/api';
-import { Bell, Search, ShieldCheck, User, Menu } from 'lucide-react';
+import { 
+  Bell, Search, ShieldCheck, User, Menu, 
+  LogOut, ChevronDown, Settings 
+} from 'lucide-react';
 
 const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const { addToast } = useToast();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+
+  const profileRef = useRef(null);
+  const notifRef = useRef(null);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (profileRef.current && !profileRef.current.contains(event.target)) {
+        setShowProfileDropdown(false);
+      }
+      if (notifRef.current && !notifRef.current.contains(event.target)) {
+        setShowNotifDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const fetchNotifications = async () => {
@@ -22,7 +47,18 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
     fetchNotifications();
   }, []);
 
+  const handleLogout = () => {
+    logout();
+    if (addToast) addToast('Logged out successfully', 'info');
+    navigate(user?.role === 'Admin' ? '/admin/login' : '/employee/login', { replace: true });
+  };
+
   const unreadCount = notifications.filter(n => !n.isRead).length;
+  const fullName = user?.employee 
+    ? `${user.employee.firstName} ${user.employee.lastName}` 
+    : (user?.username || 'Admin');
+  const roleTitle = user?.role === 'Admin' ? 'Administrator' : (user?.employee?.designation || 'Employee');
+  const userAvatar = user?.employee?.profilePhoto || `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=2563EB&color=fff`;
 
   return (
     <header style={{
@@ -39,7 +75,6 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
     }}>
       {/* Left side: Hamburger Toggle & Search */}
       <div style={{ display: 'flex', alignItems: 'center' }}>
-        {/* Toggle Button on Mobile / Tablet */}
         <button
           type="button"
           onClick={toggleSidebar}
@@ -50,7 +85,6 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
           <Menu size={22} />
         </button>
 
-        {/* Search Input */}
         <div 
           className="topbar-search-box"
           style={{
@@ -81,10 +115,14 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
           {user?.role}
         </span>
 
-        {/* Notifications */}
-        <div style={{ position: 'relative' }}>
+        {/* Notifications Dropdown */}
+        <div style={{ position: 'relative' }} ref={notifRef}>
           <button
-            onClick={() => setShowNotifDropdown(!showNotifDropdown)}
+            type="button"
+            onClick={() => {
+              setShowNotifDropdown(!showNotifDropdown);
+              setShowProfileDropdown(false);
+            }}
             style={{
               background: 'none',
               border: 'none',
@@ -153,21 +191,192 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
           )}
         </div>
 
-        {/* User profile preview */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <img 
-            src={user?.employee?.profilePhoto || `https://ui-avatars.com/api/?name=${user?.username || user?.email}&background=2563EB&color=fff`} 
-            alt="Profile" 
-            style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover' }}
-          />
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span className="topbar-user-name" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
-              {user?.employee ? `${user.employee.firstName} ${user.employee.lastName}` : (user?.username || 'Admin')}
-            </span>
-            <span className="topbar-user-designation" style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-              {user?.employee ? `${user.employee.designation} (${user.employee.employeeCode})` : 'System Administrator'}
-            </span>
+        {/* User Profile Dropdown Button */}
+        <div style={{ position: 'relative' }} ref={profileRef}>
+          <div 
+            onClick={() => {
+              setShowProfileDropdown(!showProfileDropdown);
+              setShowNotifDropdown(false);
+            }}
+            role="button"
+            tabIndex={0}
+            title="User Account Menu"
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 8,
+              padding: '4px 8px',
+              borderRadius: 8,
+              cursor: 'pointer',
+              transition: 'background 0.15s ease',
+              background: showProfileDropdown ? 'var(--bg-main)' : 'transparent',
+              userSelect: 'none'
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-main)'; }}
+            onMouseLeave={(e) => { 
+              if (!showProfileDropdown) e.currentTarget.style.background = 'transparent'; 
+            }}
+          >
+            <img 
+              src={userAvatar} 
+              alt="Profile" 
+              style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover' }}
+            />
+            <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
+              <span className="topbar-user-name" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.2 }}>
+                {fullName}
+              </span>
+              <span className="topbar-user-designation" style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                {roleTitle}
+              </span>
+            </div>
+            <ChevronDown 
+              size={14} 
+              color="var(--text-muted)" 
+              style={{
+                transition: 'transform 0.2s ease',
+                transform: showProfileDropdown ? 'rotate(180deg)' : 'rotate(0deg)',
+                marginLeft: 2
+              }}
+            />
           </div>
+
+          {/* Profile Dropdown Menu */}
+          {showProfileDropdown && (
+            <div style={{
+              position: 'absolute',
+              right: 0,
+              top: 'calc(100% + 8px)',
+              width: 230,
+              background: '#FFFFFF',
+              borderRadius: 'var(--radius-md)',
+              boxShadow: 'var(--shadow-lg)',
+              border: '1px solid var(--border-color)',
+              padding: '8px 0',
+              zIndex: 100,
+              animation: 'fadeIn 0.15s ease'
+            }}>
+              {/* User Header Info */}
+              <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--border-light)' }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--primary-navy)' }}>
+                  {fullName}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2, wordBreak: 'break-all' }}>
+                  {user?.email || user?.username}
+                </div>
+                <div style={{ marginTop: 6 }}>
+                  <span style={{ 
+                    fontSize: 10, 
+                    fontWeight: 700, 
+                    textTransform: 'uppercase', 
+                    letterSpacing: 0.5,
+                    padding: '2px 6px',
+                    borderRadius: 4,
+                    background: user?.role === 'Admin' ? 'var(--danger-bg)' : 'var(--primary-blue-light)',
+                    color: user?.role === 'Admin' ? 'var(--danger)' : 'var(--primary-blue)'
+                  }}>
+                    {user?.role} Account
+                  </span>
+                </div>
+              </div>
+
+              {/* Navigation Options */}
+              <div style={{ padding: '4px 0' }}>
+                {user?.role === 'Employee' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowProfileDropdown(false);
+                      navigate('/employee/profile');
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '8px 16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-primary)',
+                      fontSize: 13,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'background 0.1s ease'
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-main)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
+                  >
+                    <User size={16} color="var(--primary-blue)" />
+                    <span>My Profile</span>
+                  </button>
+                )}
+
+                {user?.role === 'Admin' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowProfileDropdown(false);
+                      navigate('/admin/settings');
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '8px 16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-primary)',
+                      fontSize: 13,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'background 0.1s ease'
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-main)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
+                  >
+                    <Settings size={16} color="var(--text-secondary)" />
+                    <span>Company Settings</span>
+                  </button>
+                )}
+              </div>
+
+              <div style={{ borderTop: '1px solid var(--border-light)', margin: '4px 0' }} />
+
+              {/* Logout Button */}
+              <div style={{ padding: '4px 8px' }}>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    background: 'none',
+                    border: 'none',
+                    borderRadius: 6,
+                    color: '#DC2626',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'background 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => { 
+                    e.currentTarget.style.background = 'var(--danger-bg)'; 
+                  }}
+                  onMouseLeave={(e) => { 
+                    e.currentTarget.style.background = 'none'; 
+                  }}
+                >
+                  <LogOut size={16} color="#DC2626" />
+                  <span>Logout</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </header>
