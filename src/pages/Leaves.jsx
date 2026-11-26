@@ -112,8 +112,61 @@ const Leaves = () => {
     fetchData({ fromDate: '', toDate: '', employeeId: '' });
   };
 
+  const calculateLeaveDays = (start, end) => {
+    if (!start || !end) return 1;
+    const d1 = new Date(start);
+    const d2 = new Date(end);
+    if (isNaN(d1) || isNaN(d2) || d2 < d1) return 1;
+    const diffTime = d2.getTime() - d1.getTime();
+    return Math.max(1, Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1);
+  };
+
+  const handleStartDateChange = (val) => {
+    let newEnd = formData.endDate;
+    if (!newEnd || newEnd < val) {
+      newEnd = val;
+    }
+    const days = calculateLeaveDays(val, newEnd);
+    setFormData(prev => ({
+      ...prev,
+      startDate: val,
+      endDate: newEnd,
+      totalDays: days
+    }));
+  };
+
+  const handleEndDateChange = (val) => {
+    let finalEnd = val;
+    if (formData.startDate && val < formData.startDate) {
+      finalEnd = formData.startDate;
+    }
+    const days = calculateLeaveDays(formData.startDate, finalEnd);
+    setFormData(prev => ({
+      ...prev,
+      endDate: finalEnd,
+      totalDays: days
+    }));
+  };
+
   const handleApply = async (e) => {
     e.preventDefault();
+    if (!formData.startDate) {
+      addToast('Start Date is required', 'error');
+      return;
+    }
+    if (!formData.endDate) {
+      addToast('End Date is required', 'error');
+      return;
+    }
+    if (formData.endDate < formData.startDate) {
+      addToast('End Date cannot be earlier than Start Date', 'error');
+      return;
+    }
+    if (!formData.reason.trim()) {
+      addToast('Reason for Absence is required', 'error');
+      return;
+    }
+
     try {
       await api.post('/leaves', formData);
       addToast('Leave application submitted for approval', 'success');
@@ -565,7 +618,7 @@ const Leaves = () => {
             <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Apply for Leave</h3>
             <form onSubmit={handleApply}>
               <div className="form-group">
-                <label className="form-label">Leave Type</label>
+                <label className="form-label">Leave Type <span style={{ color: 'red' }}>*</span></label>
                 <select
                   className="form-select"
                   value={formData.leaveType}
@@ -580,42 +633,56 @@ const Leaves = () => {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div className="form-group">
-                  <label className="form-label">Start Date</label>
+                  <label className="form-label">Start Date <span style={{ color: 'red' }}>*</span></label>
                   <input
                     type="date"
                     className="form-input"
                     required
                     value={formData.startDate}
-                    onChange={e => setFormData({ ...formData, startDate: e.target.value })}
+                    onChange={e => handleStartDateChange(e.target.value)}
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">End Date</label>
+                  <label className="form-label">End Date <span style={{ color: 'red' }}>*</span></label>
                   <input
                     type="date"
                     className="form-input"
                     required
+                    min={formData.startDate || ''}
                     value={formData.endDate}
-                    onChange={e => setFormData({ ...formData, endDate: e.target.value })}
+                    onChange={e => handleEndDateChange(e.target.value)}
                   />
                 </div>
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Total Days Requested</label>
-                <input
-                  type="number"
-                  min="0.5"
-                  step="0.5"
-                  className="form-input"
-                  required
-                  value={formData.totalDays}
-                  onChange={e => setFormData({ ...formData, totalDays: Number(e.target.value) })}
-                />
+              {/* Display Calculated Days Underneath */}
+              <div style={{ 
+                background: '#EFF6FF', 
+                border: '1px solid #BFDBFE', 
+                borderRadius: 8, 
+                padding: '10px 14px', 
+                marginBottom: 16,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#1E40AF' }}>
+                  Total Leave Duration:
+                </span>
+                <span style={{ 
+                  background: '#2563EB', 
+                  color: '#fff', 
+                  fontWeight: 700, 
+                  fontSize: 13, 
+                  padding: '3px 10px', 
+                  borderRadius: 12 
+                }}>
+                  {formData.totalDays} {formData.totalDays === 1 ? 'Day' : 'Days'}
+                </span>
               </div>
 
               <div className="form-group">
-                <label className="form-label">Reason for Absence</label>
+                <label className="form-label">Reason for Absence <span style={{ color: 'red' }}>*</span></label>
                 <textarea
                   className="form-textarea"
                   rows={3}

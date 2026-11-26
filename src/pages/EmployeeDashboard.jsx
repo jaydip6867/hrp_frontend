@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AttendanceActionModals from '../components/common/AttendanceActionModals';
+import { requestLocationPermission } from '../utils/locationUtils';
 import { formatDuration, calculateDurationFromTimestamps } from '../utils/timeUtils';
 
 const ALLOWED_LEAVE_TYPES = ['Sick Leave', 'Unpaid Leave', 'Emergency Leave'];
@@ -54,7 +55,8 @@ const EmployeeDashboard = () => {
   const handleCheckIn = async () => {
     try {
       setActionLoading(true);
-      const res = await api.post('/attendance/check-in', {});
+      const location = await requestLocationPermission();
+      const res = await api.post('/attendance/check-in', { location });
       addToast(res.message || 'Checked in successfully!', 'success');
       await fetchStats();
     } catch (e) {

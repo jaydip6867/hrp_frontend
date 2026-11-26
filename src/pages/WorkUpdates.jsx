@@ -24,14 +24,14 @@ const WorkUpdates = () => {
   const [searchFilter, setSearchFilter] = useState('');
 
   const [formData, setFormData] = useState({
+    date: new Date().toISOString().split('T')[0],
     relatedTask: '',
     taskTitle: '',
     workTitle: '',
     workDescription: '',
     startTime: '09:30',
     endTime: '12:30',
-    timeSpent: 3,
-    progressPercentage: 50
+    timeSpent: 3
   });
 
   const role = user?.role || 'Employee';
@@ -99,7 +99,8 @@ const WorkUpdates = () => {
         ...formData,
         employeeName: empName,
         taskTitle: selectedTask ? selectedTask.title : '',
-        date: new Date().toISOString().split('T')[0]
+        date: formData.date || new Date().toISOString().split('T')[0],
+        progressPercentage: 100
       });
       addToast('Daily work update submitted successfully', 'success');
       setShowModal(false);
@@ -386,27 +387,26 @@ const WorkUpdates = () => {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div className="form-group">
-                  <label className="form-label">Time Spent (Hours)</label>
+                  <label className="form-label">Date <span style={{ color: 'red' }}>*</span></label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    required
+                    value={formData.date}
+                    onChange={e => setFormData({ ...formData, date: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Time Spent (Hours) <span style={{ color: 'red' }}>*</span></label>
                   <input
                     type="number"
                     step="0.5"
                     min="0.5"
                     className="form-input"
+                    required
                     value={formData.timeSpent}
                     onChange={e => setFormData({ ...formData, timeSpent: e.target.value })}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Progress Percentage ({formData.progressPercentage}%)</label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    step="5"
-                    style={{ width: '100%', marginTop: 8 }}
-                    value={formData.progressPercentage}
-                    onChange={e => setFormData({ ...formData, progressPercentage: Number(e.target.value) })}
                   />
                 </div>
               </div>

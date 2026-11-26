@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { Calendar, Plus, Clock, Tag, AlertCircle, RotateCcw, Search, Filter } from 'lucide-react';
+import { Calendar, Plus, Clock, Tag, AlertCircle, RotateCcw, Search, Filter, Pencil, Trash2 } from 'lucide-react';
 import EmployeeSelectFilter from '../components/common/EmployeeSelectFilter';
 
 const Schedules = () => {
@@ -12,6 +12,7 @@ const Schedules = () => {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [editingScheduleId, setEditingScheduleId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
 
@@ -93,6 +94,7 @@ const Schedules = () => {
 
   const handleOpenModal = () => {
     setFormError('');
+    setEditingScheduleId(null);
     setFormData({
       title: '',
       description: '',
@@ -108,9 +110,53 @@ const Schedules = () => {
     setShowModal(true);
   };
 
+  const handleEdit = (schedule) => {
+    setFormError('');
+    setEditingScheduleId(schedule._id);
+    setFormData({
+      title: schedule.title || '',
+      description: schedule.description || '',
+      employee: schedule.employee || (isAdmin ? (employees[0]?._id || '') : (user?.employeeId || '')),
+      date: schedule.date || new Date().toISOString().split('T')[0],
+      startTime: schedule.startTime || '09:00',
+      endTime: schedule.endTime || '17:30',
+      priority: schedule.priority || 'Medium',
+      status: schedule.status || 'Planned',
+      reminder: !!schedule.reminder
+    });
+    setShowModal(true);
+  };
+
+  const handleDelete = async (schedule) => {
+    if (!window.confirm(`Are you sure you want to delete the schedule "${schedule.title}"?`)) {
+      return;
+    }
+    try {
+      const res = await api.delete(`/schedules/${schedule._id}`);
+      if (res.success) {
+        addToast(res.message || 'Schedule deleted successfully', 'success');
+        fetchData();
+      }
+    } catch (e) {
+      console.error('Delete schedule error:', e);
+      addToast(e.message || 'Failed to delete schedule', 'error');
+    }
+  };
+
   const handleCreate = async (e) => {
     e.preventDefault();
     setFormError('');
+
+    if (!formData.title.trim()) {
+      setFormError('Schedule Agenda Title is required');
+      return;
+    }
+
+    if (!formData.description.trim()) {
+      setFormError('Description is required');
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -134,15 +180,22 @@ const Schedules = () => {
         employeeName: selectedEmpName
       };
 
-      const res = await api.post('/schedules', payload);
+      let res;
+      if (editingScheduleId) {
+        res = await api.put(`/schedules/${editingScheduleId}`, payload);
+      } else {
+        res = await api.post('/schedules', payload);
+      }
+
       if (res.success) {
-        addToast(res.message || 'Daily schedule published successfully!', 'success');
+        addToast(res.message || (editingScheduleId ? 'Schedule updated successfully!' : 'Daily schedule published successfully!'), 'success');
         setShowModal(false);
+        setEditingScheduleId(null);
         fetchData();
       }
     } catch (e) {
-      console.error('Schedule creation error:', e);
-      const errMsg = e.data?.message || e.message || 'Failed to publish schedule';
+      console.error('Schedule submission error:', e);
+      const errMsg = e.data?.message || e.message || 'Failed to save schedule';
       setFormError(errMsg);
       addToast(errMsg, 'error');
     } finally {
@@ -272,32 +325,62 @@ const Schedules = () => {
               <th>Priority</th>
               <th>Status</th>
               <th>Assigned By</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan="7" style={{ textAlign: 'center', padding: 24 }}>Loading schedules...</td></tr>
+              <tr><td colSpan="8" style={{ textAlign: 'center', padding: 24 }}>Loading schedules...</td></tr>
             ) : displayedSchedules.length === 0 ? (
-              <tr><td colSpan="7" style={{ textAlign: 'center', padding: 24 }}>No schedules planned {appliedFromDate || appliedToDate ? 'matching the selected date range.' : 'matching criteria. Click "Assign Schedule" to add one.'}</td></tr>
+              <tr><td colSpan="8" style={{ textAlign: 'center', padding: 24 }}>No schedules planned {appliedFromDate || appliedToDate ? 'matching the selected date range.' : 'matching criteria. Click "Assign Schedule" to add one.'}</td></tr>
             ) : (
-              displayedSchedules.map(s => (
-                <tr key={s._id}>
-                  <td><strong>{s.employeeName || 'Assigned Staff'}</strong></td>
-                  <td>{s.date}</td>
-                  <td>
-                    <div style={{ fontWeight: 600, color: 'var(--primary-navy)' }}>{s.title}</div>
-                    {s.description && <div style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{s.description}</div>}
-                  </td>
-                  <td>{s.startTime} - {s.endTime}</td>
-                  <td>
-                    <span className={`badge ${s.priority === 'High' || s.priority === 'Urgent' ? 'badge-danger' : s.priority === 'Medium' ? 'badge-warning' : 'badge-neutral'}`}>
-                      {s.priority}
-                    </span>
-                  </td>
-                  <td><span className="badge badge-info">{s.status}</span></td>
-                  <td><span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{s.assignedBy || 'Admin'}</span></td>
-                </tr>
-              ))
+              displayedSchedules.map(s => {
+                const canManage = isAdmin || s.employee === user?.employeeId || s.employee === user?.employee?._id;
+                return (
+                  <tr key={s._id}>
+                    <td><strong>{s.employeeName || 'Assigned Staff'}</strong></td>
+                    <td>{s.date}</td>
+                    <td>
+                      <div style={{ fontWeight: 600, color: 'var(--primary-navy)' }}>{s.title}</div>
+                      {s.description && <div style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{s.description}</div>}
+                    </td>
+                    <td>{s.startTime} - {s.endTime}</td>
+                    <td>
+                      <span className={`badge ${s.priority === 'High' || s.priority === 'Urgent' ? 'badge-danger' : s.priority === 'Medium' ? 'badge-warning' : 'badge-neutral'}`}>
+                        {s.priority}
+                      </span>
+                    </td>
+                    <td><span className="badge badge-info">{s.status}</span></td>
+                    <td><span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{s.assignedBy || 'Admin'}</span></td>
+                    <td>
+                      {canManage ? (
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => handleEdit(s)}
+                            title="Edit Schedule"
+                            style={{ padding: '5px 8px', color: 'var(--primary-navy)' }}
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => handleDelete(s)}
+                            title="Delete Schedule"
+                            style={{ padding: '5px 8px', color: '#DC2626' }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>—</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -307,7 +390,9 @@ const Schedules = () => {
         <div className="modal-overlay">
           <div className="modal-content">
             <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>
-              {isAdmin ? 'Assign Schedule to Employee' : 'Create My Daily Schedule'}
+              {editingScheduleId 
+                ? 'Edit Schedule' 
+                : (isAdmin ? 'Assign Schedule to Employee' : 'Create My Daily Schedule')}
             </h3>
 
             {formError && (
@@ -353,7 +438,7 @@ const Schedules = () => {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Schedule Agenda Title *</label>
+                <label className="form-label">Schedule Agenda Title <span style={{ color: 'red' }}>*</span></label>
                 <input 
                   type="text" 
                   className="form-input" 
@@ -365,13 +450,14 @@ const Schedules = () => {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Description</label>
+                <label className="form-label">Description <span style={{ color: 'red' }}>*</span></label>
                 <textarea 
                   className="form-textarea" 
-                  rows="2"
+                  rows="3"
                   value={formData.description} 
                   onChange={e => setFormData({ ...formData, description: e.target.value })} 
                   placeholder="Provide context, meeting objectives, or milestones..."
+                  required
                 />
               </div>
 

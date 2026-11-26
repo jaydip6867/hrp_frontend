@@ -6,6 +6,7 @@ import { CheckCircle2, Clock, Calendar, AlertTriangle, RotateCcw, Filter } from 
 import EmployeeSelectFilter from '../components/common/EmployeeSelectFilter';
 import AttendanceActionModals from '../components/common/AttendanceActionModals';
 import { formatDuration, calculateDurationFromTimestamps } from '../utils/timeUtils';
+import { requestLocationPermission } from '../utils/locationUtils';
 
 const Attendance = () => {
   const { user } = useAuth();
@@ -102,7 +103,8 @@ const Attendance = () => {
   const handleCheckIn = async () => {
     try {
       setActionLoading(true);
-      const res = await api.post('/attendance/check-in', {});
+      const location = await requestLocationPermission();
+      const res = await api.post('/attendance/check-in', { location });
       addToast(res.message || 'Checked in successfully!', 'success');
       await fetchAttendance();
     } catch (e) {

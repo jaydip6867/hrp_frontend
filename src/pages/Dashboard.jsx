@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import AttendanceActionModals from '../components/common/AttendanceActionModals';
 import { formatDuration, calculateDurationFromTimestamps } from '../utils/timeUtils';
+import { requestLocationPermission } from '../utils/locationUtils';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -44,7 +45,8 @@ const Dashboard = () => {
   const handleCheckIn = async () => {
     try {
       setActionLoading(true);
-      const res = await api.post('/attendance/check-in', {});
+      const location = await requestLocationPermission();
+      const res = await api.post('/attendance/check-in', { location });
       addToast(res.message || 'Checked in successfully!', 'success');
       fetchDashboardData();
     } catch (e) {
@@ -57,7 +59,8 @@ const Dashboard = () => {
   const handleCheckOut = async () => {
     try {
       setActionLoading(true);
-      const res = await api.post('/attendance/check-out', {});
+      const location = await requestLocationPermission();
+      const res = await api.post('/attendance/check-out', { location });
       addToast(res.message || 'Checked out successfully!', 'success');
       fetchDashboardData();
     } catch (e) {

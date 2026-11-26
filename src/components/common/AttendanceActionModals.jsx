@@ -3,6 +3,7 @@ import api from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 import { Calendar, Clock, X, AlertCircle, CheckSquare, Send, Lock } from 'lucide-react';
 import { formatDuration } from '../../utils/timeUtils';
+import { requestLocationPermission } from '../../utils/locationUtils';
 
 export const AttendanceActionModals = ({
   showScheduleModal,
@@ -107,6 +108,18 @@ export const AttendanceActionModals = ({
 
     try {
       setSubmittingSchedule(true);
+
+      // Step 1: Request Geolocation permission before Clock In
+      let location = null;
+      try {
+        location = await requestLocationPermission();
+      } catch (locErr) {
+        setScheduleError(locErr.message || 'Location permission is required to Clock In. Please allow access.');
+        addToast(locErr.message || 'Location permission is required to Clock In', 'error');
+        setSubmittingSchedule(false);
+        return;
+      }
+
       const payload = {
         title: scheduleForm.title.trim(),
         description: scheduleForm.notes
@@ -121,19 +134,19 @@ export const AttendanceActionModals = ({
         reminder: true
       };
 
-      // Step 1: Save daily schedule
+      // Step 2: Save daily schedule
       const schedRes = await api.post('/schedules', payload);
       if (!schedRes.success) {
         throw new Error(schedRes.message || 'Failed to save daily schedule');
       }
 
-      // Step 2: Record actual Clock In timestamp & start attendance session
-      const checkInRes = await api.post('/attendance/check-in', {});
+      // Step 3: Record actual Clock In timestamp & location
+      const checkInRes = await api.post('/attendance/check-in', { location });
       if (!checkInRes.success) {
         throw new Error(checkInRes.message || 'Failed to complete clock-in');
       }
 
-      addToast('Daily schedule saved & Clocked In successfully!', 'success');
+      addToast('Daily schedule saved & Clocked In successfully with verified location!', 'success');
       onCloseScheduleModal();
       if (onSuccess) await onSuccess();
     } catch (err) {
@@ -156,11 +169,30 @@ export const AttendanceActionModals = ({
       setWorkError("Work Summary / Description is required");
       return;
     }
+    if (!workForm.pendingTasks.trim()) {
+      setWorkError("Pending Tasks field is required before clocking out");
+      return;
+    }
+    if (!workForm.challenges.trim()) {
+      setWorkError("Challenges / Issues field is required before clocking out");
+      return;
+    }
 
     try {
       setSubmittingWork(true);
 
-      // 1. Submit Work Activity Log
+      // Step 1: Request Geolocation permission before Clock Out
+      let location = null;
+      try {
+        location = await requestLocationPermission();
+      } catch (locErr) {
+        setWorkError(locErr.message || 'Location permission is required to Clock Out. Please allow access.');
+        addToast(locErr.message || 'Location permission is required to Clock Out', 'error');
+        setSubmittingWork(false);
+        return;
+      }
+
+      // Step 2: Submit Work Activity Log
       const workPayload = {
         date: workForm.date,
         workTitle: workForm.completedTasks.trim().substring(0, 80),
@@ -176,10 +208,10 @@ export const AttendanceActionModals = ({
 
       await api.post('/work-updates', workPayload);
 
-      // 2. Complete Attendance Clock Out
-      const checkOutRes = await api.post('/attendance/check-out', {});
+      // Step 3: Complete Attendance Clock Out with location
+      const checkOutRes = await api.post('/attendance/check-out', { location });
 
-      addToast(checkOutRes.message || 'Daily work activity logged & clocked out successfully!', 'success');
+      addToast(checkOutRes.message || 'Daily work activity logged & clocked out successfully with verified location!', 'success');
       onCloseClockOutModal();
       if (onSuccess) await onSuccess();
     } catch (err) {
@@ -418,7 +450,7 @@ export const AttendanceActionModals = ({
             )}
 
             <form onSubmit={handleWorkAndClockOutSubmit}>
-              {/* Row 1: Work Date, Employee Name, Total Work Hours */}
+              {/* Row 1: Work Date, Employee Name, Auto Calculated Hours */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
                 <div className="form-group">
                   <label className="form-label">Work Date</label>
@@ -447,17 +479,16 @@ export const AttendanceActionModals = ({
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">
-                    Total Work Hours <span style={{ color: 'red' }}>*</span>
+                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    Total Work Hours <Lock size={12} style={{ color: '#64748B' }} />
                   </label>
                   <input
-                    type="number"
-                    step="0.1"
-                    min="0.1"
+                    type="text"
                     className="form-input"
-                    value={workForm.totalWorkHours}
-                    onChange={e => setWorkForm({ ...workForm, totalWorkHours: e.target.value })}
-                    required
+                    value={formatDuration(workForm.totalWorkHours)}
+                    readOnly
+                    disabled
+                    style={{ background: '#F1F5F9', color: '#1E293B', cursor: 'not-allowed', fontWeight: 600 }}
                   />
                 </div>
               </div>
@@ -488,27 +519,29 @@ export const AttendanceActionModals = ({
                 />
               </div>
 
-              {/* Row 4: Pending Tasks & Challenges */}
+              {/* Row 4: Pending Tasks & Challenges (Both Required) */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                 <div className="form-group">
-                  <label className="form-label">Pending Tasks</label>
+                  <label className="form-label">Pending Tasks <span style={{ color: 'red' }}>*</span></label>
                   <textarea
                     className="form-textarea"
                     rows={2}
                     placeholder="Tasks carried forward to next working day..."
                     value={workForm.pendingTasks}
                     onChange={e => setWorkForm({ ...workForm, pendingTasks: e.target.value })}
+                    required
                   />
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Challenges / Issues</label>
+                  <label className="form-label">Challenges / Issues <span style={{ color: 'red' }}>*</span></label>
                   <textarea
                     className="form-textarea"
                     rows={2}
                     placeholder="Any blockers or technical challenges faced..."
                     value={workForm.challenges}
                     onChange={e => setWorkForm({ ...workForm, challenges: e.target.value })}
+                    required
                   />
                 </div>
               </div>
