@@ -1,12 +1,25 @@
-// Robust API client that works in all network environments
+// Robust API client that works seamlessly in both local and live production environments
 function getBaseUrl() {
-  if (typeof window === 'undefined') return 'http://localhost:5050/api/v1';
-  // If browser is running in development mode on Vite (5173, 5174, 5175, etc.) or port 3000
-  if (['5173', '5174', '5175', '3000'].includes(window.location.port)) {
-    return `${window.location.protocol}//${window.location.hostname}:5050/api/v1`;
+  // 1. If explicit environment variable is set in Vite (.env or Vercel dashboard)
+  if (import.meta.env && import.meta.env.VITE_API_URL) {
+    let url = import.meta.env.VITE_API_URL.trim().replace(/\/+$/, '');
+    if (!url.endsWith('/api/v1')) url += '/api/v1';
+    return url;
   }
-  // Otherwise use relative path (e.g. unified production server on port 5050)
-  return '/api/v1';
+
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    // 2. Local development on localhost or 127.0.0.1
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || ['5173', '5174', '5175', '3000'].includes(window.location.port)) {
+      return `${window.location.protocol}//${hostname}:5050/api/v1`;
+    }
+
+    // 3. Live deployment on Vercel or custom domain
+    return 'https://hrp-backend-7674.onrender.com/api/v1';
+  }
+
+  // Fallback for SSR / Node runtime
+  return 'http://localhost:5050/api/v1';
 }
 
 class ApiClient {
