@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { Plus, CheckCircle, XCircle, AlertCircle, Clock, RotateCcw, Search, Filter } from 'lucide-react';
+import { Plus, CheckCircle, XCircle, AlertCircle, Clock, RotateCcw, Search, Filter, Pencil, Trash2 } from 'lucide-react';
 import EmployeeSelectFilter from '../components/common/EmployeeSelectFilter';
 import { formatDuration } from '../utils/timeUtils';
 
@@ -14,6 +14,7 @@ const WorkUpdates = () => {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [editingUpdateId, setEditingUpdateId] = useState(null);
 
   // Filters for Admin
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
@@ -89,22 +90,78 @@ const WorkUpdates = () => {
     fetchData({ fromDate: '', toDate: '', employeeId: '' });
   };
 
+  const handleOpenModal = () => {
+    setEditingUpdateId(null);
+    setFormData({
+      date: new Date().toISOString().split('T')[0],
+      relatedTask: '',
+      taskTitle: '',
+      workTitle: '',
+      workDescription: '',
+      startTime: '09:30',
+      endTime: '12:30',
+      timeSpent: 3
+    });
+    setShowModal(true);
+  };
+
+  const handleEdit = (u) => {
+    setEditingUpdateId(u._id);
+    setFormData({
+      date: u.date || new Date().toISOString().split('T')[0],
+      relatedTask: u.relatedTask || '',
+      taskTitle: u.taskTitle || '',
+      workTitle: u.workTitle || '',
+      workDescription: u.workDescription || '',
+      startTime: u.startTime || '09:30',
+      endTime: u.endTime || '12:30',
+      timeSpent: u.timeSpent || 3
+    });
+    setShowModal(true);
+  };
+
+  const handleDelete = async (u) => {
+    if (!window.confirm(`Are you sure you want to delete the work update "${u.workTitle}"?`)) {
+      return;
+    }
+    try {
+      const res = await api.delete(`/work-updates/${u._id}`);
+      if (res.success) {
+        addToast(res.message || 'Work update deleted successfully', 'success');
+        fetchData();
+      }
+    } catch (err) {
+      addToast(err.message || 'Failed to delete work update', 'error');
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       const selectedTask = tasks.find(t => t._id === formData.relatedTask);
       const empName = user?.employee ? `${user.employee.firstName} ${user.employee.lastName}` : (user?.username || 'Employee');
 
-      await api.post('/work-updates', {
+      const payload = {
         ...formData,
         employeeName: empName,
         taskTitle: selectedTask ? selectedTask.title : '',
         date: formData.date || new Date().toISOString().split('T')[0],
         progressPercentage: 100
-      });
-      addToast('Daily work update submitted successfully', 'success');
-      setShowModal(false);
-      fetchData();
+      };
+
+      let res;
+      if (editingUpdateId) {
+        res = await api.put(`/work-updates/${editingUpdateId}`, payload);
+      } else {
+        res = await api.post('/work-updates', payload);
+      }
+
+      if (res.success) {
+        addToast(res.message || (editingUpdateId ? 'Work update updated successfully' : 'Daily work update submitted successfully'), 'success');
+        setShowModal(false);
+        setEditingUpdateId(null);
+        fetchData();
+      }
     } catch (err) {
       addToast(err.message || 'Submission failed', 'error');
     }
@@ -148,7 +205,7 @@ const WorkUpdates = () => {
           </p>
         </div>
 
-        <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+        <button className="btn btn-primary" onClick={handleOpenModal}>
           <Plus size={16} /> Submit Work Update
         </button>
       </div>
@@ -244,7 +301,7 @@ const WorkUpdates = () => {
               <th>Duration</th>
               <th>Progress</th>
               <th>Review Status</th>
-              {role === 'Admin' && <th>Admin Actions</th>}
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -253,90 +310,118 @@ const WorkUpdates = () => {
             ) : displayedUpdates.length === 0 ? (
               <tr><td colSpan="8" style={{ textAlign: 'center', padding: 24 }}>No work updates found {appliedFromDate || appliedToDate ? 'matching the selected date range.' : 'matching criteria.'}</td></tr>
             ) : (
-              displayedUpdates.map(u => (
-                <tr key={u._id}>
-                  <td>
-                    <strong>{u.employeeName || 'Unknown Employee'}</strong>
-                    {u.employeeCode && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{u.employeeCode}</div>}
-                  </td>
-                  <td>{u.date}</td>
-                  <td>
-                    <div style={{ fontWeight: 600, color: 'var(--primary-navy)' }}>{u.workTitle}</div>
-                    <div style={{ color: 'var(--text-secondary)', fontSize: 12, marginTop: 2 }}>{u.workDescription}</div>
-                    {u.completedTasks && (
-                      <div style={{ fontSize: 11, color: '#16A34A', marginTop: 4 }}>
-                        <strong>Completed Tasks:</strong> {u.completedTasks}
-                      </div>
-                    )}
-                    {u.pendingTasks && (
-                      <div style={{ fontSize: 11, color: '#D97706', marginTop: 2 }}>
-                        <strong>Pending:</strong> {u.pendingTasks}
-                      </div>
-                    )}
-                    {u.challenges && (
-                      <div style={{ fontSize: 11, color: '#DC2626', marginTop: 2 }}>
-                        <strong>Challenges/Blockers:</strong> {u.challenges}
-                      </div>
-                    )}
-                    {u.notes && (
-                      <div style={{ fontSize: 11, color: '#64748B', marginTop: 2 }}>
-                        <strong>Notes:</strong> {u.notes}
-                      </div>
-                    )}
-                  </td>
-                  <td>{u.taskTitle || '—'}</td>
-                  <td style={{ fontWeight: 600, color: 'var(--primary-navy)' }}>
-                    {formatDuration(u.timeSpent)}
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <div style={{ width: 60, height: 6, background: '#E2E8F0', borderRadius: 4, overflow: 'hidden' }}>
-                        <div style={{ width: `${u.progressPercentage || 0}%`, height: '100%', background: '#2563EB' }} />
-                      </div>
-                      <span style={{ fontSize: 12 }}>{u.progressPercentage}%</span>
-                    </div>
-                  </td>
-                  <td>
-                    <span className={`badge ${u.workStatus === 'Approved' ? 'badge-success' :
-                        u.workStatus === 'Rejected' ? 'badge-danger' :
-                          u.workStatus === 'Revision Requested' ? 'badge-warning' : 'badge-info'
-                      }`}>
-                      {u.workStatus}
-                    </span>
-                    {u.remarks && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>"{u.remarks}"</div>}
-                  </td>
-                  {role === 'Admin' && (
+              displayedUpdates.map(u => {
+                const canManage = isAdmin || u.employee === user?.employeeId || u.employee === user?.employee?._id;
+                return (
+                  <tr key={u._id}>
                     <td>
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => handleReview(u._id, 'Approved')}
-                          title="Approve"
-                          style={{ color: 'var(--success)' }}
-                        >
-                          <CheckCircle size={14} />
-                        </button>
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => handleReview(u._id, 'Revision Requested')}
-                          title="Request Revision"
-                          style={{ color: 'var(--warning)' }}
-                        >
-                          <AlertCircle size={14} />
-                        </button>
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => handleReview(u._id, 'Rejected')}
-                          title="Reject"
-                          style={{ color: 'var(--danger)' }}
-                        >
-                          <XCircle size={14} />
-                        </button>
+                      <strong>{u.employeeName || 'Unknown Employee'}</strong>
+                      {u.employeeCode && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{u.employeeCode}</div>}
+                    </td>
+                    <td>{u.date}</td>
+                    <td>
+                      <div style={{ fontWeight: 600, color: 'var(--primary-navy)' }}>{u.workTitle}</div>
+                      <div style={{ color: 'var(--text-secondary)', fontSize: 12, marginTop: 2 }}>{u.workDescription}</div>
+                      {u.completedTasks && (
+                        <div style={{ fontSize: 11, color: '#16A34A', marginTop: 4 }}>
+                          <strong>Completed Tasks:</strong> {u.completedTasks}
+                        </div>
+                      )}
+                      {u.pendingTasks && (
+                        <div style={{ fontSize: 11, color: '#D97706', marginTop: 2 }}>
+                          <strong>Pending:</strong> {u.pendingTasks}
+                        </div>
+                      )}
+                      {u.challenges && (
+                        <div style={{ fontSize: 11, color: '#DC2626', marginTop: 2 }}>
+                          <strong>Challenges/Blockers:</strong> {u.challenges}
+                        </div>
+                      )}
+                      {u.notes && (
+                        <div style={{ fontSize: 11, color: '#64748B', marginTop: 2 }}>
+                          <strong>Notes:</strong> {u.notes}
+                        </div>
+                      )}
+                    </td>
+                    <td>{u.taskTitle || '—'}</td>
+                    <td style={{ fontWeight: 600, color: 'var(--primary-navy)' }}>
+                      {formatDuration(u.timeSpent)}
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ width: 60, height: 6, background: '#E2E8F0', borderRadius: 4, overflow: 'hidden' }}>
+                          <div style={{ width: `${u.progressPercentage || 0}%`, height: '100%', background: '#2563EB' }} />
+                        </div>
+                        <span style={{ fontSize: 12 }}>{u.progressPercentage}%</span>
                       </div>
                     </td>
-                  )}
-                </tr>
-              ))
+                    <td>
+                      <span className={`badge ${u.workStatus === 'Approved' ? 'badge-success' :
+                          u.workStatus === 'Rejected' ? 'badge-danger' :
+                            u.workStatus === 'Revision Requested' ? 'badge-warning' : 'badge-info'
+                        }`}>
+                        {u.workStatus}
+                      </span>
+                      {u.remarks && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>"{u.remarks}"</div>}
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        {/* Admin Review Action Buttons */}
+                        {role === 'Admin' && (
+                          <>
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => handleReview(u._id, 'Approved')}
+                              title="Approve"
+                              style={{ color: 'var(--success)', padding: '5px 7px' }}
+                            >
+                              <CheckCircle size={14} />
+                            </button>
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => handleReview(u._id, 'Revision Requested')}
+                              title="Request Revision"
+                              style={{ color: 'var(--warning)', padding: '5px 7px' }}
+                            >
+                              <AlertCircle size={14} />
+                            </button>
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => handleReview(u._id, 'Rejected')}
+                              title="Reject"
+                              style={{ color: 'var(--danger)', padding: '5px 7px' }}
+                            >
+                              <XCircle size={14} />
+                            </button>
+                          </>
+                        )}
+
+                        {/* Edit and Delete Buttons (Admin or Owner) */}
+                        {canManage && (
+                          <>
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => handleEdit(u)}
+                              title="Edit Work Update"
+                              style={{ color: 'var(--primary-navy)', padding: '5px 7px' }}
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => handleDelete(u)}
+                              title="Delete Work Update"
+                              style={{ color: '#DC2626', padding: '5px 7px' }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -345,7 +430,9 @@ const WorkUpdates = () => {
       {showModal && (
         <div className="modal-overlay">
           <div className="modal-content">
-            <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Submit Daily Work Log</h3>
+            <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>
+              {editingUpdateId ? 'Edit Daily Work Log' : 'Submit Daily Work Log'}
+            </h3>
             <form onSubmit={handleSubmit}>
               <div className="form-group">
                 <label className="form-label">Related Project Task</label>
@@ -412,8 +499,16 @@ const WorkUpdates = () => {
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">Submit for Review</button>
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  onClick={() => { setShowModal(false); setEditingUpdateId(null); }}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  {editingUpdateId ? 'Save Changes' : 'Submit for Review'}
+                </button>
               </div>
             </form>
           </div>
