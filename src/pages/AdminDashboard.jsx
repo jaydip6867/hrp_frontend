@@ -1,0 +1,218 @@
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
+import api from '../services/api';
+import { 
+  Users, UserCheck, UserX, Clock, Calendar, 
+  CheckCircle2, AlertCircle, TrendingUp, ShieldCheck 
+} from 'lucide-react';
+
+const AdminDashboard = () => {
+  const { user } = useAuth();
+  const { addToast } = useToast();
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchStats = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get('/reports/dashboard');
+      if (res.success && res.data) {
+        setStats(res.data);
+      }
+    } catch (e) {
+      console.error(e);
+      addToast('Failed to load admin statistics', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  if (loading) {
+    return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>Loading executive dashboard...</div>;
+  }
+
+  return (
+    <div>
+      {/* Executive Welcome Banner */}
+      <div style={{
+        background: 'linear-gradient(135deg, #172B4D 0%, #2563EB 100%)',
+        borderRadius: 'var(--radius-md)',
+        padding: '24px 28px',
+        color: '#fff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 24,
+        boxShadow: 'var(--shadow-md)'
+      }}>
+        <div>
+          <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 6 }}>
+            Executive Admin Control Center
+          </h1>
+          <p style={{ opacity: 0.9, fontSize: 14 }}>
+            System overview for {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}. Full governance over employees, attendance, tasks and leaves.
+          </p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.15)', padding: '8px 16px', borderRadius: 8 }}>
+          <ShieldCheck size={20} />
+          <span style={{ fontWeight: 600, fontSize: 13 }}>Enterprise Admin</span>
+        </div>
+      </div>
+
+      {/* 11 Required Statistics Grid */}
+      <div className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: '#EFF6FF', color: '#2563EB' }}>
+            <Users size={24} />
+          </div>
+          <div className="stat-info">
+            <span className="stat-value">{stats?.totalEmployees || 0}</span>
+            <span className="stat-label">Total Employees</span>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: '#DCFCE7', color: '#16A34A' }}>
+            <UserCheck size={24} />
+          </div>
+          <div className="stat-info">
+            <span className="stat-value">{stats?.activeEmployees || 0}</span>
+            <span className="stat-label">Active Employees</span>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: '#FEE2E2', color: '#DC2626' }}>
+            <UserX size={24} />
+          </div>
+          <div className="stat-info">
+            <span className="stat-value">{stats?.inactiveEmployees || 0}</span>
+            <span className="stat-label">Inactive Employees</span>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: '#DCFCE7', color: '#16A34A' }}>
+            <CheckCircle2 size={24} />
+          </div>
+          <div className="stat-info">
+            <span className="stat-value">{stats?.presentToday || 0}</span>
+            <span className="stat-label">Present Today</span>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: '#FEE2E2', color: '#DC2626' }}>
+            <UserX size={24} />
+          </div>
+          <div className="stat-info">
+            <span className="stat-value">{stats?.absentToday || 0}</span>
+            <span className="stat-label">Absent Today</span>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: '#E0F2FE', color: '#0284C7' }}>
+            <Calendar size={24} />
+          </div>
+          <div className="stat-info">
+            <span className="stat-value">{stats?.employeesOnLeave || 0}</span>
+            <span className="stat-label">Employees on Leave</span>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: '#FEF3C7', color: '#F59E0B' }}>
+            <Clock size={24} />
+          </div>
+          <div className="stat-info">
+            <span className="stat-value">{stats?.lateArrivals || 0}</span>
+            <span className="stat-label">Late Arrivals</span>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: '#FEF3C7', color: '#D97706' }}>
+            <AlertCircle size={24} />
+          </div>
+          <div className="stat-info">
+            <span className="stat-value">{stats?.pendingLeaveRequests || 0}</span>
+            <span className="stat-label">Pending Leave Requests</span>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: '#EFF6FF', color: '#2563EB' }}>
+            <TrendingUp size={24} />
+          </div>
+          <div className="stat-info">
+            <span className="stat-value">{stats?.activeTasks || 0}</span>
+            <span className="stat-label">Active Tasks</span>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: '#DCFCE7', color: '#16A34A' }}>
+            <CheckCircle2 size={24} />
+          </div>
+          <div className="stat-info">
+            <span className="stat-value">{stats?.completedTasks || 0}</span>
+            <span className="stat-label">Completed Tasks</span>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: '#F1F5F9', color: '#64748B' }}>
+            <Clock size={24} />
+          </div>
+          <div className="stat-info">
+            <span className="stat-value">{stats?.pendingTasks || 0}</span>
+            <span className="stat-label">Pending Tasks</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Charts & Breakdown */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 24 }}>
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-title">Department-wise Employees</h3>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {stats?.departmentDistribution?.map(dept => (
+              <div key={dept.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--bg-main)', borderRadius: 8 }}>
+                <span style={{ fontWeight: 600 }}>{dept.name}</span>
+                <span className="badge badge-info">{dept.count} Employees</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-title">Monthly Attendance Flow</h3>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {stats?.monthlyAttendance?.map(item => (
+              <div key={item.day} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderBottom: '1px solid var(--border-light)' }}>
+                <span style={{ fontWeight: 600, width: 45 }}>{item.day}</span>
+                <div style={{ display: 'flex', gap: 14 }}>
+                  <span style={{ color: 'var(--success)', fontSize: 13, fontWeight: 500 }}>Present: {item.present}</span>
+                  <span style={{ color: 'var(--danger)', fontSize: 13, fontWeight: 500 }}>Absent: {item.absent}</span>
+                  <span style={{ color: 'var(--warning)', fontSize: 13, fontWeight: 500 }}>Late: {item.late}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default AdminDashboard;
