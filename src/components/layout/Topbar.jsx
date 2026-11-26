@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import { Bell, Search, ShieldCheck, User } from 'lucide-react';
+import { Bell, Search, ShieldCheck, User, Menu } from 'lucide-react';
 
-const Topbar = () => {
+const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
@@ -32,31 +32,49 @@ const Topbar = () => {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
-      padding: '0 24px',
+      padding: '0 20px',
       position: 'sticky',
       top: 0,
       zIndex: 90
     }}>
-      {/* Search Input */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        background: 'var(--bg-main)',
-        padding: '8px 14px',
-        borderRadius: 'var(--radius-sm)',
-        width: 340
-      }}>
-        <Search size={16} color="var(--text-muted)" />
-        <input 
-          type="text" 
-          placeholder="Search records, tasks, employees..." 
-          style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: 13 }}
-        />
+      {/* Left side: Hamburger Toggle & Search */}
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        {/* Toggle Button on Mobile / Tablet */}
+        <button
+          type="button"
+          onClick={toggleSidebar}
+          className="sidebar-toggle-btn"
+          title="Toggle Navigation Menu"
+          aria-label="Toggle navigation menu"
+        >
+          <Menu size={22} />
+        </button>
+
+        {/* Search Input */}
+        <div 
+          className="topbar-search-box"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            background: 'var(--bg-main)',
+            padding: '8px 14px',
+            borderRadius: 'var(--radius-sm)',
+            width: 300,
+            maxWidth: '100%'
+          }}
+        >
+          <Search size={16} color="var(--text-muted)" />
+          <input 
+            type="text" 
+            placeholder="Search records, tasks..." 
+            style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: 13 }}
+          />
+        </div>
       </div>
 
       {/* Right Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
         {/* Role Pill */}
         <span className={`badge ${user?.role === 'Admin' ? 'badge-danger' : 'badge-info'}`}>
           {user?.role === 'Admin' ? <ShieldCheck size={12} style={{ marginRight: 4 }} /> : <User size={12} style={{ marginRight: 4 }} />}
@@ -107,7 +125,8 @@ const Topbar = () => {
               position: 'absolute',
               right: 0,
               top: 40,
-              width: 320,
+              width: 300,
+              maxWidth: '90vw',
               background: '#FFFFFF',
               borderRadius: 'var(--radius-md)',
               boxShadow: 'var(--shadow-lg)',
@@ -142,10 +161,10 @@ const Topbar = () => {
             style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover' }}
           />
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+            <span className="topbar-user-name" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
               {user?.employee ? `${user.employee.firstName} ${user.employee.lastName}` : (user?.username || 'Admin')}
             </span>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+            <span className="topbar-user-designation" style={{ fontSize: 11, color: 'var(--text-muted)' }}>
               {user?.employee ? `${user.employee.designation} (${user.employee.employeeCode})` : 'System Administrator'}
             </span>
           </div>
