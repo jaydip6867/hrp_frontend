@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../services/api';
 import {
   Users, UserCheck, UserX, Clock, Calendar,
-  CheckCircle2, AlertCircle, TrendingUp, ArrowUpRight
+  CheckCircle2, AlertCircle, TrendingUp, ArrowUpRight, LogOut
 } from 'lucide-react';
 import AttendanceActionModals from '../components/common/AttendanceActionModals';
 import { formatDuration, calculateDurationFromTimestamps } from '../utils/timeUtils';
@@ -13,9 +14,11 @@ import { requestLocationPermission } from '../utils/locationUtils';
 const Dashboard = () => {
   const { user } = useAuth();
   const { addToast } = useToast();
+  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const todayStr = new Date().toISOString().split('T')[0];
 
   // Modals for employee action
   const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -169,7 +172,12 @@ const Dashboard = () => {
       {role === 'Admin' && (
         <>
           <div className="stats-grid">
-            <div className="stat-card">
+            <div 
+              className="stat-card"
+              onClick={() => navigate('/admin/employees')}
+              style={{ cursor: 'pointer' }}
+              title="Click to view all employees"
+            >
               <div className="stat-icon" style={{ background: '#EFF6FF', color: '#2563EB' }}>
                 <Users size={24} />
               </div>
@@ -179,7 +187,12 @@ const Dashboard = () => {
               </div>
             </div>
 
-            <div className="stat-card">
+            <div 
+              className="stat-card"
+              onClick={() => navigate(`/admin/attendance?status=Present&date=${todayStr}`)}
+              style={{ cursor: 'pointer' }}
+              title="Click to view present employees today"
+            >
               <div className="stat-icon" style={{ background: '#DCFCE7', color: '#16A34A' }}>
                 <UserCheck size={24} />
               </div>
@@ -189,7 +202,12 @@ const Dashboard = () => {
               </div>
             </div>
 
-            <div className="stat-card">
+            <div 
+              className="stat-card"
+              onClick={() => navigate(`/admin/attendance?status=Absent&date=${todayStr}`)}
+              style={{ cursor: 'pointer' }}
+              title="Click to view absent employees today"
+            >
               <div className="stat-icon" style={{ background: '#FEE2E2', color: '#DC2626' }}>
                 <UserX size={24} />
               </div>
@@ -199,7 +217,28 @@ const Dashboard = () => {
               </div>
             </div>
 
-            <div className="stat-card">
+            {/* Today Not Checkout */}
+            <div 
+              className="stat-card"
+              onClick={() => navigate(`/admin/attendance?notCheckedOut=true&date=${todayStr}`)}
+              style={{ cursor: 'pointer', border: (stats?.todayNotCheckout || 0) > 0 ? '1px solid #FCD34D' : undefined }}
+              title="Click to view employees not checked out today"
+            >
+              <div className="stat-icon" style={{ background: '#FEF3C7', color: '#D97706' }}>
+                <LogOut size={24} />
+              </div>
+              <div className="stat-info">
+                <span className="stat-value">{stats?.todayNotCheckout || 0}</span>
+                <span className="stat-label">Today Not Checkout</span>
+              </div>
+            </div>
+
+            <div 
+              className="stat-card"
+              onClick={() => navigate(`/admin/attendance?status=Late Arrival&date=${todayStr}`)}
+              style={{ cursor: 'pointer' }}
+              title="Click to view late arrivals"
+            >
               <div className="stat-icon" style={{ background: '#FEF3C7', color: '#F59E0B' }}>
                 <Clock size={24} />
               </div>
@@ -209,7 +248,12 @@ const Dashboard = () => {
               </div>
             </div>
 
-            <div className="stat-card">
+            <div 
+              className="stat-card"
+              onClick={() => navigate('/admin/leaves?status=Pending')}
+              style={{ cursor: 'pointer' }}
+              title="Click to view pending leave requests"
+            >
               <div className="stat-icon" style={{ background: '#E0F2FE', color: '#0284C7' }}>
                 <Calendar size={24} />
               </div>
@@ -219,7 +263,12 @@ const Dashboard = () => {
               </div>
             </div>
 
-            <div className="stat-card">
+            <div 
+              className="stat-card"
+              onClick={() => navigate('/admin/tasks?status=In Progress')}
+              style={{ cursor: 'pointer' }}
+              title="Click to view active tasks"
+            >
               <div className="stat-icon" style={{ background: '#F3E8FF', color: '#9333EA' }}>
                 <TrendingUp size={24} />
               </div>

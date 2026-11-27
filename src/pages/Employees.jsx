@@ -5,8 +5,9 @@ import { useAuth } from '../context/AuthContext';
 import {
   Plus, Search, Edit, Trash2, KeyRound,
   CheckCircle, XCircle, Copy, AlertTriangle, Eye, EyeOff, RotateCcw, Calendar,
-  Clock, ShieldCheck, Filter
+  Clock, ShieldCheck, Filter, ChevronDown, ChevronUp, MapPin
 } from 'lucide-react';
+import { formatDuration } from '../utils/timeUtils';
 
 const Employees = () => {
   const { user } = useAuth();
@@ -28,6 +29,12 @@ const Employees = () => {
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentId, setCurrentId] = useState(null);
+
+  // Accordion States for Employee Working Hours Summary & Attendance Session Logs
+  const [attendanceList, setAttendanceList] = useState([]);
+  const [employeeSummaries, setEmployeeSummaries] = useState([]);
+  const [summaryAccordionOpen, setSummaryAccordionOpen] = useState(false);
+  const [logsAccordionOpen, setLogsAccordionOpen] = useState(false);
 
   // Password Management States
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -71,13 +78,20 @@ const Employees = () => {
       if (weekFilter) params.week = weekFilter;
       if (monthFilter) params.month = monthFilter;
 
-      const [empRes, deptRes] = await Promise.all([
+      const [empRes, deptRes, attRes] = await Promise.all([
         api.get('/employees', params),
-        api.get('/departments')
+        api.get('/departments'),
+        api.get('/attendance')
       ]);
 
       if (empRes.success) setEmployees(empRes.data);
       if (deptRes.success) setDepartments(deptRes.data);
+      if (attRes.success && attRes.data) {
+        setAttendanceList(attRes.data);
+        if (attRes.employeeSummaries) {
+          setEmployeeSummaries(attRes.employeeSummaries);
+        }
+      }
     } catch (e) {
       console.error(e);
       addToast('Failed to load employees', 'error');
@@ -236,10 +250,10 @@ const Employees = () => {
   };
 
   const handleDelete = async (id, name) => {
-    if (window.confirm(`Are you sure you want to remove ${name}? Historical attendance and work records will be safely preserved.`)) {
+    if (window.confirm(`Are you sure you want to permanently delete ${name}? This will delete the employee profile and their login account from the database.`)) {
       try {
         await api.delete(`/employees/${id}`);
-        addToast('Employee removed safely (historical records preserved)', 'success');
+        addToast('Employee permanently deleted from database', 'success');
         loadData();
       } catch (err) {
         addToast(err.message || 'Action failed', 'error');
@@ -494,6 +508,188 @@ const Employees = () => {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* ======================================================== */}
+      {/* ACCORDION 1: Employee Working Hours Summary              */}
+      {/* ======================================================== */}
+      <div className="card" style={{ marginTop: 24, padding: 0, overflow: 'hidden' }}>
+        <div 
+          onClick={() => setSummaryAccordionOpen(!summaryAccordionOpen)}
+          style={{ 
+            padding: '16px 20px', 
+            background: '#F8FAFC', 
+            borderBottom: summaryAccordionOpen ? '1px solid var(--border-color)' : 'none', 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            cursor: 'pointer',
+            userSelect: 'none'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <h4 style={{ fontSize: 16, fontWeight: 700, color: 'var(--primary-navy)', margin: 0 }}>
+              Employee Working Hours Summary
+            </h4>
+            <span className="badge badge-info">{employeeSummaries.length} Employee(s)</span>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              (Standard 6 Hours / Working Day)
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-secondary)', fontSize: 13, fontWeight: 600 }}>
+            <span>{summaryAccordionOpen ? 'Collapse' : 'Expand Accordion'}</span>
+            {summaryAccordionOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+          </div>
+        </div>
+
+        {summaryAccordionOpen && (
+          <div className="table-container" style={{ margin: 0, border: 'none', borderRadius: 0 }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Employee Name</th>
+                  <th>Employee Code</th>
+                  <th>Department</th>
+                  <th>Total Working Days</th>
+                  <th>Daily Working Hours</th>
+                  <th>Total Working Hours</th>
+                </tr>
+              </thead>
+              <tbody>
+                {employeeSummaries.length === 0 ? (
+                  <tr><td colSpan={6} style={{ textAlign: 'center', padding: 20 }}>No working hours summary available.</td></tr>
+                ) : (
+                  employeeSummaries.map(emp => (
+                    <tr key={emp.employeeId || emp.employeeCode}>
+                      <td><strong>{emp.employeeName}</strong></td>
+                      <td><span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{emp.employeeCode}</span></td>
+                      <td>{emp.department || '—'}</td>
+                      <td>
+                        <span style={{ fontWeight: 600, color: 'var(--primary-navy)' }}>
+                          {emp.totalWorkingDays} Days
+                        </span>
+                      </td>
+                      <td>
+                        <span style={{ color: 'var(--text-secondary)' }}>
+                          {emp.dailyWorkingHours} Hours
+                        </span>
+                      </td>
+                      <td>
+                        <span style={{ fontWeight: 700, color: '#16A34A', fontSize: 14 }}>
+                          {emp.totalWorkingHours} Hours
+                        </span>
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 6 }}>
+                          ({emp.totalWorkingDays} × {emp.dailyWorkingHours})
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* ======================================================== */}
+      {/* ACCORDION 2: Attendance Session Logs                     */}
+      {/* ======================================================== */}
+      <div className="card" style={{ marginTop: 20, marginBottom: 24, padding: 0, overflow: 'hidden' }}>
+        <div 
+          onClick={() => setLogsAccordionOpen(!logsAccordionOpen)}
+          style={{ 
+            padding: '16px 20px', 
+            background: '#F8FAFC', 
+            borderBottom: logsAccordionOpen ? '1px solid var(--border-color)' : 'none', 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            cursor: 'pointer',
+            userSelect: 'none'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <h4 style={{ fontSize: 16, fontWeight: 700, color: 'var(--primary-navy)', margin: 0 }}>
+              Attendance Session Logs
+            </h4>
+            <span className="badge badge-info">{attendanceList.length} Record(s)</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-secondary)', fontSize: 13, fontWeight: 600 }}>
+            <span>{logsAccordionOpen ? 'Collapse' : 'Expand Accordion'}</span>
+            {logsAccordionOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+          </div>
+        </div>
+
+        {logsAccordionOpen && (
+          <div className="table-container" style={{ margin: 0, border: 'none', borderRadius: 0 }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Employee</th>
+                  <th>Date</th>
+                  <th>Check-In</th>
+                  <th>Check-Out</th>
+                  <th>Working Hours</th>
+                  <th>Location</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {attendanceList.length === 0 ? (
+                  <tr><td colSpan={7} style={{ textAlign: 'center', padding: 24 }}>No attendance records found.</td></tr>
+                ) : (
+                  attendanceList.slice(0, 50).map(record => (
+                    <tr key={record._id}>
+                      <td>
+                        <strong>{record.employeeName || 'Unknown Employee'}</strong>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{record.employeeCode || '—'}</div>
+                      </td>
+                      <td>{record.date}</td>
+                      <td>
+                        {record.checkIn ? new Date(record.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+                      </td>
+                      <td>
+                        {record.checkOut ? (
+                          new Date(record.checkOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        ) : (
+                          <span className="badge badge-warning" style={{ fontSize: 11 }}>In Progress</span>
+                        )}
+                      </td>
+                      <td style={{ fontWeight: 600, color: 'var(--primary-navy)' }}>
+                        {formatDuration(record.workingHours)}
+                      </td>
+                      <td>
+                        {record.checkInLocation ? (
+                          <a
+                            href={`https://www.google.com/maps?q=${record.checkInLocation.latitude},${record.checkInLocation.longitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#16A34A', textDecoration: 'none', fontSize: 11, fontWeight: 600 }}
+                          >
+                            <MapPin size={12} />
+                            {Number(record.checkInLocation.latitude).toFixed(3)}, {Number(record.checkInLocation.longitude).toFixed(3)}
+                          </a>
+                        ) : (
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>—</span>
+                        )}
+                      </td>
+                      <td>
+                        <span className={`badge ${
+                          record.status === 'Present' ? 'badge-success' :
+                          record.status === 'Late Arrival' ? 'badge-warning' :
+                          record.status === 'Half Day' ? 'badge-info' :
+                          record.status === 'Absent' ? 'badge-danger' : 'badge-neutral'
+                        }`}>
+                          {record.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Password Management Confirmation Modal */}
