@@ -246,7 +246,7 @@ const Tasks = () => {
   return (
     <div>
       {/* Page Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 14 }}>
+      <div className="page-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 14 }}>
         <div>
           <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--primary-navy)' }}>Task Management</h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>

@@ -84,7 +84,7 @@ const Reports = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div className="page-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--primary-navy)' }}>Reports & Analytics</h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Enterprise auditing, executive attendance, performance data, and CSV/Excel exports</p>

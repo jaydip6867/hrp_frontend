@@ -363,7 +363,7 @@ const Attendance = () => {
   return (
     <div>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 14 }}>
+      <div className="page-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 14 }}>
         <div>
           <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--primary-navy)' }}>
             {isAdmin ? 'Attendance Management & Audit' : 'My Attendance & Clock Session'}
@@ -377,7 +377,7 @@ const Attendance = () => {
 
         {/* Employee Portal Action Buttons: Always display both buttons side by side */}
         {!isAdmin && (
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="welcome-banner-actions" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
             <button 
               type="button"
               className="btn"

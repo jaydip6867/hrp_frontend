@@ -47,7 +47,7 @@ const EmployeeSelectFilter = ({
   };
 
   return (
-    <div ref={containerRef} style={{ position: 'relative', minWidth: 220 }}>
+    <div ref={containerRef} style={{ position: 'relative', width: '100%', minWidth: 0 }}>
       {label && (
         <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>
           {label}

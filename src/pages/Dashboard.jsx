@@ -96,7 +96,7 @@ const Dashboard = () => {
   return (
     <div>
       {/* Welcome Banner */}
-      <div style={{
+      <div className="welcome-banner" style={{
         background: 'linear-gradient(135deg, #172B4D 0%, #2563EB 100%)',
         borderRadius: 'var(--radius-md)',
         padding: '24px 28px',
@@ -118,7 +118,7 @@ const Dashboard = () => {
 
         {/* Action button on banner: Always display both buttons side by side */}
         {role === 'Employee' && (
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="welcome-banner-actions" style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
             <button
               type="button"
               className="btn"

@@ -49,7 +49,7 @@ const Meetings = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div className="page-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--primary-navy)' }}>Meeting Management</h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Schedule, join video conferences, and track sprint alignment calls</p>

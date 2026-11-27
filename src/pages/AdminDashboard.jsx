@@ -43,7 +43,7 @@ const AdminDashboard = () => {
   return (
     <div>
       {/* Executive Welcome Banner */}
-      <div style={{
+      <div className="welcome-banner" style={{
         background: 'linear-gradient(135deg, #172B4D 0%, #2563EB 100%)',
         borderRadius: 'var(--radius-md)',
         padding: '24px 28px',
